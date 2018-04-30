@@ -1,0 +1,12 @@
+{
+  "name": "redux-what",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "FallenMax <FallenMax@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@types/redux": "^3.6.0",
+    "redux": "^4.0.0",
+    "typescript": "^2.8.3"
+  }
+}
