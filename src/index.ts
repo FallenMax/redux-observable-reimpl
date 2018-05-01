@@ -11,10 +11,10 @@ namespace AddSubtract {
 
   // state
   export interface State {
-    value: number
+    readonly value: number
   }
   export const state: State = {
-    value: 123,
+    value: 1,
   }
 
   // reducer
@@ -45,10 +45,10 @@ namespace MultiplyDivide {
 
   // state
   export interface State {
-    value: number
+    readonly value: number
   }
   export const state: State = {
-    value: 123,
+    value: 2,
   }
 
   // reducer
@@ -78,37 +78,77 @@ interface State {
   multiDivide: MultiplyDivide.State
 }
 
-const state: State = {
-  addSubtract: AddSubtract.state,
-  multiDivide: MultiplyDivide.state,
-}
-
 const reducers = {
   addSubtract: AddSubtract.reducer,
   multiDivide: MultiplyDivide.reducer,
 }
 
-// @ts-ignore
-const reducer = (state: State, action: EveryAction): State => {
-  const newState = {}
-  for (const key in state) {
-    if (state.hasOwnProperty(key)) {
-      //
-    }
-  }
+interface Listener {
+  (state: State): any
+}
 
-  return Object.keys(state)
-    .map(key => ({
-      key,
+const store = {
+  state: {
+    addSubtract: AddSubtract.state,
+    multiDivide: MultiplyDivide.state,
+  } as State,
+  listeners: [] as Listener[],
+  reducer(state: State, action: EveryAction): State {
+    // @ts-ignore
+    return Object.entries(state).reduce(
       // @ts-ignore
-      state: reducers[key](state[key], action),
-    }))
-    .reduce(
-      (prev, cur) =>
+      (prev, [key, stateSlice]) => {
         // @ts-ignore
-        Object.assign(prev, {
-          [cur.key]: cur.state,
-        }),
+        return Object.assign(prev, {
+          // @ts-ignore
+          [key]: reducers[key](stateSlice, action),
+        })
+      },
       {}
     )
+  },
+  getState(): State {
+    return store.state
+  },
+  subscribe(listener: Listener) {
+    if (store.listeners.indexOf(listener) === -1) {
+      store.listeners.push(listener)
+      listener(store.state)
+      return function unsubscribe() {
+        store.unsubscribe(listener)
+      }
+    }
+  },
+  unsubscribe(listener: Listener) {
+    const index = store.listeners.indexOf(listener)
+    if (index !== -1) {
+      store.listeners.splice(index, 1)
+    }
+  },
+  dispatch(action: EveryAction) {
+    store.state = store.reducer(store.state, action)
+    store.listeners.forEach(l => l(store.state))
+  },
 }
+
+const view = (state: State) => {
+  const val1 = state.addSubtract.value
+  const val2 = state.multiDivide.value
+  console.log({ val1, val2 })
+}
+
+store.subscribe(view)
+
+setTimeout(function() {
+  store.dispatch({
+    type: 'add',
+    payload: 3,
+  })
+}, 1000)
+
+setTimeout(function() {
+  store.dispatch({
+    type: 'multiply',
+    payload: 2,
+  })
+}, 1000)
