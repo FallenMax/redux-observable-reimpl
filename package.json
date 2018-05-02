@@ -8,5 +8,8 @@
     "@types/redux": "^3.6.0",
     "redux": "^4.0.0",
     "typescript": "^2.8.3"
+  },
+  "devDependencies": {
+    "ts-node": "^6.0.2"
   }
 }

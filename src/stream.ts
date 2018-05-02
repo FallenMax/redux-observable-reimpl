@@ -1,22 +1,33 @@
 // ------------ Stream: core ------------
 
-export interface StreamListener<T> {
+interface StreamListener<T> {
   (value: T): void
 }
 
-export interface StreamDependent<T> {
+interface StreamDependent<T> {
   updateDependent(val: T): void
   flushDependent(): void
 }
 
 export interface Stream<T> {
+  // core
   (val: T | undefined): void
   (): T
   _listeners: StreamListener<T>[]
   _dependents: StreamDependent<T>[]
   _value: T | undefined
   _changed: boolean
+  subscribe(listener: StreamListener<T>, emitOnSubscribe?: boolean): void
+
+  // operators
+  log(name: string): Stream<T>
+  map<V>(mapper: (val: T) => V | undefined): Stream<V>
+  unique(): Stream<T>
+  filter<V extends T>(predict: (val: T) => boolean): Stream<V>
+  delay(delayInMs: number): Stream<T>
 }
+
+const proto: Partial<Stream<any>> = {}
 
 export const subscribe = function<T>(
   stream$: Stream<T>,
@@ -29,6 +40,9 @@ export const subscribe = function<T>(
     }
     stream$._listeners.push(listener)
   }
+}
+proto.subscribe = function(this: Stream<any>, listener, emitOnSubscribe) {
+  return subscribe(this, listener, emitOnSubscribe)
 }
 
 const updateStream = function<T>(stream$: Stream<T>, val: T) {
@@ -47,7 +61,30 @@ const flushStream = function<T>(stream$: Stream<T>) {
   }
 }
 
-export const Stream = <T>(init?: T): Stream<T> => {
+interface StreamNamespace {
+  <T>(init?: T): Stream<T>
+
+  combine<T1, V>(
+    combiner: (s1: T1) => V | undefined,
+    streams: [Stream<T1>]
+  ): Stream<V>
+  combine<T1, T2, V>(
+    combiner: (s1: T1, s2: T2) => V | undefined,
+    streams: [Stream<T1>, Stream<T2>]
+  ): Stream<V>
+  combine<T1, T2, T3, V>(
+    combiner: (s1: T1, s2: T2, s3: T3) => V | undefined,
+    streams: [Stream<T1>, Stream<T2>, Stream<T3>]
+  ): Stream<V>
+
+  merge<A>(streams: [Stream<A>]): Stream<A>
+  merge<A, B>(streams: [Stream<A>, Stream<B>]): Stream<A | B>
+  merge<A, B, C>(streams: [Stream<A>, Stream<B>, Stream<C>]): Stream<A | B | C>
+  merge<V>(streams: Stream<V>[]): Stream<V>
+  merge(streams: Stream<any>[]): Stream<any>
+}
+
+export const Stream: StreamNamespace = (<T>(init?: T): Stream<T> => {
   const stream$: Stream<T> = function(val: T) {
     if (val === undefined) return stream$._value
     updateStream(stream$, val)
@@ -57,25 +94,15 @@ export const Stream = <T>(init?: T): Stream<T> => {
   stream$._changed = false
   stream$._listeners = []
   stream$._dependents = []
+  // @ts-ignore
+  Object.assign(stream$, proto)
   return stream$
-}
+}) as StreamNamespace
 
-// ------------ Stream: combine ------------
-export function combine<T1, V>(
-  streams: [Stream<T1>],
-  combiner: (s1: T1) => V | undefined
-): Stream<V>
-export function combine<T1, T2, V>(
-  streams: [Stream<T1>, Stream<T2>],
-  combiner: (s1: T1, s2: T2) => V | undefined
-): Stream<V>
-export function combine<T1, T2, T3, V>(
-  streams: [Stream<T1>, Stream<T2>, Stream<T3>],
-  combiner: (s1: T1, s2: T2, s3: T3) => V | undefined
-): Stream<V>
+// ------------ Stream.combine ------------
 export function combine(
-  streams: Stream<any>[],
-  combiner: (...values: any[]) => any
+  combiner: (...values: any[]) => any,
+  streams: Stream<any>[]
 ): Stream<any> {
   let cached = streams.map(stream$ => stream$())
   const combined$ = Stream(combiner(...cached))
@@ -94,25 +121,42 @@ export function combine(
 
   return combined$
 }
+Stream.combine = combine
 
-// ------------ Stream: log --------------
+// ------------ Stream.merge --------------
+export function merge(streams: Stream<any>[]): Stream<any> {
+  const merged$ = Stream()
+  streams.forEach(stream$ => {
+    subscribe(stream$, val => merged$(val))
+  })
+  return merged$
+}
+Stream.merge = merge
+
+// ------------ Stream::log --------------
 export const log = function log<T>(
-  stream$: Stream<T>,
-  name: string
+  name: string,
+  stream$: Stream<T>
 ): Stream<T> {
   subscribe(stream$, val => console.log(`[stream] ${name}: ${val}`))
   return stream$
 }
-
-// ------------ Stream: map --------------
-export const map = function map<T, V>(
-  stream$: Stream<T>,
-  mapper: (val: T) => V | undefined
-): Stream<V> {
-  return combine([stream$], mapper)
+proto.log = function(this: Stream<any>, name) {
+  return log(name, this)
 }
 
-// ------------ Stream: unique --------------
+// ------------ Stream::map --------------
+export const map = function map<T, V>(
+  mapper: (val: T) => V | undefined,
+  stream$: Stream<T>
+): Stream<V> {
+  return combine(mapper, [stream$])
+}
+proto.map = function(this: Stream<any>, mapper) {
+  return map(mapper, this)
+}
+
+// ------------ Stream::unique --------------
 export const unique = function unique<T>(stream$: Stream<T>): Stream<T> {
   let lastValue = stream$()
   const unique$ = Stream(lastValue)
@@ -124,21 +168,68 @@ export const unique = function unique<T>(stream$: Stream<T>): Stream<T> {
   })
   return unique$
 }
+proto.unique = function(this: Stream<any>) {
+  return unique(this)
+}
 
-// ------------ Stream: filter --------------
-
-export const filter = function filter<T>(
-  stream$: Stream<T>,
-  predict: (val: T) => boolean
+// ------------ Stream::filter --------------
+export const filter = function filter<U, T extends U>(
+  predict: (val: U) => boolean,
+  stream$: Stream<U>
 ): Stream<T> {
-  const mapper = (val: T) => (predict(val) ? val : undefined)
-  return map<T, T>(stream$, mapper)
+  const mapper = ((val: U) => (predict(val) ? val : undefined)) as ((
+    val: U
+  ) => T)
+  return map<U, T>(mapper, stream$)
+}
+proto.filter = function(this: Stream<any>, predict) {
+  return filter(predict, this)
+}
+
+// ------------ Stream::delay --------------
+export const delay = function delay<T>(
+  delayInMs: number,
+  stream$: Stream<T>
+): Stream<T> {
+  const delayed$ = Stream<T>()
+  subscribe(stream$, value => {
+    setTimeout(() => {
+      delayed$(value)
+    }, delayInMs)
+  })
+  return delayed$
+}
+proto.delay = function(this: Stream<any>, delayInMs) {
+  return delay(delayInMs, this)
+}
+
+// ------------ Stream::pipe --------------
+interface Mapper<A, B> {
+  (s: Stream<A>): Stream<B>
+}
+export function pipe<A, B>(
+  operators: [Mapper<A, B>],
+  stream$: Stream<A>
+): Stream<B>
+export function pipe<A, B, C>(
+  operators: [Mapper<A, B>, Mapper<B, C>],
+  stream$: Stream<A>
+): Stream<C>
+export function pipe<A, B, C, D>(
+  operators: [Mapper<A, B>, Mapper<B, C>, Mapper<C, D>],
+  stream$: Stream<A>
+): Stream<D>
+export function pipe(operators: any[], stream$: Stream<any>): Stream<any> {
+  return operators.reduce((current$, operator) => operator(current$), stream$)
 }
 
 // ------------ tests --------------
-const a = log(Stream(1), 'a')
-const b = log(Stream(2), 'b')
-const c = log(Stream(3), 'c')
-const d = log(combine([a, b, c], (a, b, c) => a + b + c), 'd')
-const e = log(map(d, x => x * 3), 'e')
-const f = log(filter(e, x => Boolean(x % 2)), 'f')
+// const a = log('a', Stream(1))
+// const b = log('b', Stream(2))
+// const c = log('c', Stream(3))
+// const d = log('d', combine((a, b, c) => a + b + c, [a, b, c]))
+// const e = log('e', map(x => x * 3, d))
+// const f = log('f', filter(x => Boolean(x % 2), e))
+// const abcd = log('abcd', merge([a, b, c, d]))
+
+// a(2)
