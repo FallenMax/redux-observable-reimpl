@@ -9,7 +9,13 @@
     "redux": "^4.0.0",
     "typescript": "^2.8.3"
   },
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc -p src",
+    "watch": "tsc -p src -w & nodemon dist/index.js"
+  },
   "devDependencies": {
+    "nodemon": "^1.17.3",
     "ts-node": "^6.0.2"
   }
 }
