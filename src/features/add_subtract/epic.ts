@@ -15,6 +15,9 @@ export const addThenRandom: AbstractEpic<Random> = (action$, store) => {
 }
 
 export const multiplyThenNothing: AbstractEpic<Nothing> = (action$, store) => {
+  const s = store.getState()
+  console.log(s.multiDivide)
+
   return action$
     .filter<Multiply>(val => val.type === 'multiply')
     .delay(1000)

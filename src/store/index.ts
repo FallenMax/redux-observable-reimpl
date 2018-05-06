@@ -1,5 +1,5 @@
 import { Stream } from '../util/stream'
-import { Listener, Store } from './abstract_store'
+import { Listener, Store } from './store'
 import { EveryAction } from './action'
 import { rootEpic } from './epic'
 import { State, reducers, state as initState } from './reducer'

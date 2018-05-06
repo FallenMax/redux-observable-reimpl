@@ -1,5 +1,5 @@
 import { Stream } from '../util/stream'
-import { Store } from './abstract_store'
+import { Store } from './store'
 import { EveryAction } from './action'
 
 export interface AbstractEpic<T extends EveryAction> {

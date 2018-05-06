@@ -1,14 +1,9 @@
-import { Store } from '../../store/abstract_store'
-import { EveryAction } from '../../store/action'
-import { Stream } from '../../util/stream'
+import { AbstractEpic } from '../../store/abstract_epic'
 import { Random } from '../add_subtract/action'
 import { Multiply } from './action'
 
 // epic
-export const randomThenMultiply = (
-  action$: Stream<EveryAction>,
-  store: Store
-): Stream<Multiply> => {
+export const randomThenMultiply: AbstractEpic<Multiply> = (action$, store) => {
   return action$
     .filter<Random>(val => val.type === 'random')
     .delay(1000)
