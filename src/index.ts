@@ -20,12 +20,8 @@ setTimeout(function() {
 }, 1000)
 
 setTimeout(function() {
-  console.log('exit')
-}, 5000)
-
-// setTimeout(function() {
-//   store.dispatch({
-//     type: 'multiply',
-//     payload: 2,
-//   })
-// }, 2000)
+  store.dispatch({
+    type: 'multiply',
+    payload: 2,
+  })
+}, 2000)
