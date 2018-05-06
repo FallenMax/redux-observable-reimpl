@@ -1,5 +1,5 @@
 {
-  "name": "redux-stream-tmp",
+  "name": "redux-observable-reimpl",
   "version": "1.0.0",
   "main": "index.js",
   "author": "FallenMax <FallenMax@gmail.com>",
