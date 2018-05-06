@@ -1,12 +1,10 @@
 {
-  "name": "redux-what",
+  "name": "redux-stream-tmp",
   "version": "1.0.0",
   "main": "index.js",
   "author": "FallenMax <FallenMax@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@types/redux": "^3.6.0",
-    "redux": "^4.0.0",
     "typescript": "^2.8.3"
   },
   "scripts": {
@@ -15,7 +13,6 @@
     "watch": "tsc -p src -w & nodemon dist/index.js"
   },
   "devDependencies": {
-    "nodemon": "^1.17.3",
-    "ts-node": "^6.0.2"
+    "nodemon": "^1.17.3"
   }
 }
